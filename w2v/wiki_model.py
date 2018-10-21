@@ -23,7 +23,7 @@ def run(infile, outfile):
     root = os.path.dirname(outfile)
     os.makedirs(root, exist_ok=True)
 
-    model = Word2Vec(LineSentence(infile), size=400, window=5, min_count=5, workers=multiprocessing.cpu_count())
+    model = Word2Vec(LineSentence(infile), workers=multiprocessing.cpu_count())
     model.wv.save_word2vec_format(outfile, binary=True)
 
 
