@@ -6,7 +6,6 @@ import multiprocessing
 import warnings
 warnings.filterwarnings(action='ignore', category=UserWarning, module='gensim')
 
-import progressbar
 from gensim.corpora import WikiCorpus
 from hanziconv import HanziConv
 import jieba
@@ -46,7 +45,7 @@ def write_word(outfile, outqueue):
     return
 
 
-def run2(infile, outfile, interrupt):
+def run(infile, outfile, interrupt):
     if not os.path.isfile(infile):
         print("not such file {}".format(infile))
         return False
@@ -88,37 +87,10 @@ def run2(infile, outfile, interrupt):
         writer.join(wait)
 
 
-def run(infile, outfile, interrupt):
-    if not os.path.isfile(infile):
-        print("not such file {}".format(infile))
-        return
-
-    outfile = os.path.abspath(outfile)
-    root = os.path.dirname(outfile)
-    os.makedirs(root, exist_ok=True)
-
-    wiki = WikiCorpus(infile, lemmatize=False, dictionary={})
-    with open(outfile, 'wb') as f:
-        i = 0
-        bar = progressbar.ProgressBar(maxval=progressbar.UnknownLength,
-                                      widgets=[progressbar.widgets.Counter(), '', progressbar.widgets.Bar()])
-        bar.start()
-        for text in wiki.get_texts():
-            text = [w.encode('utf-8') for w in text]
-            f.writelines([b' '.join(text), b'\n'])
-            i += 1
-            bar.update(i)
-            if interrupt and bar.currval >= interrupt:
-                break
-        bar.finish()
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--infile', type=str, required=True)
     parser.add_argument('--outfile', type=str, required=True)
     parser.add_argument('--interrupt', type=int, required=False, default=None)
     args = parser.parse_args()
-
-    # run(args.infile, args.outfile, args.interrupt)
-    run2(args.infile, args.outfile, args.interrupt)
+    run(args.infile, args.outfile, args.interrupt)
