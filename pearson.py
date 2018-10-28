@@ -8,6 +8,17 @@ import lightgbm as lgb
 from sklearn.model_selection import PredefinedSplit
 from sklearn.metrics import f1_score
 from gensim.models import KeyedVectors
+import jieba
+
+
+def get_max_similarity(model, text1, text2):
+    if not text1 or not text2:
+        return 0
+    words1 = [w for w in jieba.cut(text1, cut_call=False) if len(w) > 1 and w in model]
+    words2 = [w for w in jieba.cut(text2, cut_call=False) if len(w) > 1 and w in model]
+    if not words1 or not words2:
+        return 0
+    return max([model.similarity(w1, w2) for w1 in words1 for w2 in words2])
 
 
 def train(train_file, valid_file, test_file, model_file):
@@ -20,33 +31,22 @@ def train(train_file, valid_file, test_file, model_file):
     model = KeyedVectors.load_word2vec_format(model_file, binary=True)
 
     train_data = pd.concat([train_data, valid_data])
-    train_data['prefix-title'] = model.similarity(train_data['prefix'], train_data['title'])
-    train_data['prefix-tag'] = model.similarity(train_data['prefix'], train_data['tag'])
-    # valid_data['prefix-title'] = model.similarity(valid_data['prefix'], valid_data['title'])
-    # valid_data['prefix-tag'] = model.similarity(valid_data['prefix'], valid_data['tag'])
-    test_data['prefix-title'] = model.similarity(test_data['prefix'], test_data['title'])
-    test_data['prefix-tag'] = model.similarity(test_data['prefix'], test_data['tag'])
+    train_data['prefix-title'] = get_max_similarity(model, train_data['prefix'], train_data['title'])
+    train_data['prefix-tag'] = get_max_similarity(model, train_data['prefix'], train_data['tag'])
+    test_data['prefix-title'] = get_max_similarity(model, test_data['prefix'], test_data['title'])
+    test_data['prefix-tag'] = get_max_similarity(model, test_data['prefix'], test_data['tag'])
     for i in range(10):
-        train_data['query_prediction-title-{}'.format(i)] = model.similarity(
-            train_data['query_prediction'][i], train_data['title']) if len(
-            train_data['query_prediction']) > i else 0
-        train_data['query_prediction-tag-{}'.format(i)] = model.similarity(
-            train_data['query_prediction'][i], train_data['tag']) if len(train_data['query_prediction']) > i else 0
+        train_data['query_prediction-title-{}'.format(i)] = get_max_similarity(model, train_data['query_prediction'][i],
+                                                                               train_data['title'])
+        train_data['query_prediction-tag-{}'.format(i)] = get_max_similarity(model, train_data['query_prediction'][i],
+                                                                             train_data['tag'])
 
-        # valid_data['query_prediction-title-{}'.format(i)] = model.similarity(
-        #     valid_data['query_prediction'][i], valid_data['title']) if len(
-        #     valid_data['query_prediction']) > i else 0
-        # valid_data['query_prediction-tag-{}'.format(i)] = model.similarity(
-        #     valid_data['query_prediction'][i], valid_data['tag']) if len(valid_data['query_prediction']) > i else 0
-
-        test_data['query_prediction-title-{}'.format(i)] = model.similarity(
-            test_data['query_prediction'][i], test_data['title']) if len(
-            test_data['query_prediction']) > i else 0
-        test_data['query_prediction-tag-{}'.format(i)] = model.similarity(
-            test_data['query_prediction'][i], test_data['tag']) if len(test_data['query_prediction']) > i else 0
+        test_data['query_prediction-title-{}'.format(i)] = get_max_similarity(model, test_data['query_prediction'][i],
+                                                                              test_data['title'])
+        test_data['query_prediction-tag-{}'.format(i)] = get_max_similarity(model, test_data['query_prediction'][i],
+                                                                            train_data['tag'])
 
     train_data = train_data.drop(['prefix', 'query_prediction', 'title', 'tag'], axis=1)
-    # valid_data = valid_data.drop(['prefix', 'query_prediction', 'title', 'tag'], axis=1)
 
     xx_logloss = []
     xx_submit = []
